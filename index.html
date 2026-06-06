@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kalakirja">
+  <meta name="theme-color" content="#0a1a14">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Kalakirja</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg:        #0a1a14;
+      --bg2:       #0f2219;
+      --bg3:       #162e20;
+      --green:     #2d7a55;
+      --green-lit: #3fa06e;
+      --green-hi:  #5ec98a;
+      --amber:     #c8882a;
+      --text:      #d4ead8;
+      --text2:     #7aaa88;
+      --text3:     #3d6648;
+      --border:    rgba(45,122,85,0.25);
+      --radius:    14px;
+      --safe-top:  env(safe-area-inset-top, 0px);
+      --safe-bot:  env(safe-area-inset-bottom, 0px);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
+
+    /* LAYOUT */
+    #shell { display: flex; flex-direction: column; height: 100%; }
+    #header {
+      padding: calc(var(--safe-top) + 14px) 20px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(180deg, rgba(10,26,20,0.98) 0%, rgba(10,26,20,0.85) 100%);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #header h1 { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--green-hi); letter-spacing: 0.02em; }
+    #header .subtitle { font-size: 11px; color: var(--text2); font-weight: 300; margin-top: 1px; }
+    .tab-bar {
+      display: flex; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .tab { flex: 1; padding: 12px 4px; text-align: center; font-size: 11px; font-weight: 500; color: var(--text3); cursor: pointer; border: none; background: none; font-family: 'DM Sans', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; transition: color 0.2s; }
+    .tab.active { color: var(--green-hi); border-bottom: 2px solid var(--green-hi); }
+
+    #content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(var(--safe-bot) + 16px); }
+    .page { display: none; padding: 20px 16px; }
+    .page.active { display: block; }
+
+    /* SECTION LABEL */
+    .lbl { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; margin-top: 20px; }
+    .lbl:first-child { margin-top: 0; }
+
+    /* SPECIES */
+    .species-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .sp-btn {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px 6px 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;
+      transition: all 0.18s; font-family: 'DM Sans', sans-serif; position: relative; overflow: hidden;
+    }
+    .sp-btn::before { content: ''; position: absolute; inset: 0; background: var(--green); opacity: 0; transition: opacity 0.18s; }
+    .sp-btn.active { border-color: var(--green-hi); }
+    .sp-btn.active::before { opacity: 0.12; }
+    .sp-btn svg { width: 38px; height: 28px; position: relative; z-index: 1; }
+    .sp-name { font-size: 12px; font-weight: 500; color: var(--text2); position: relative; z-index: 1; transition: color 0.18s; }
+    .sp-btn.active .sp-name { color: var(--green-hi); }
+
+    /* METHOD */
+    .method-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .method-btn {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px 6px 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;
+      transition: all 0.18s; font-family: 'DM Sans', sans-serif; position: relative; overflow: hidden;
+    }
+    .method-btn::before { content: ''; position: absolute; inset: 0; background: var(--amber); opacity: 0; transition: opacity 0.18s; }
+    .method-btn.active { border-color: #e8b050; }
+    .method-btn.active::before { opacity: 0.1; }
+    .method-btn .m-icon { font-size: 22px; line-height: 1; position: relative; z-index: 1; }
+    .method-btn .m-name { font-size: 11px; font-weight: 500; color: var(--text2); position: relative; z-index: 1; transition: color 0.18s; text-align: center; }
+    .method-btn.active .m-name { color: #e8b050; }
+
+    /* SLIDERS */
+    .measure-block { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .slider-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+    .slider-row + .slider-row { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 14px; }
+    .s-unit { font-size: 11px; color: var(--text3); width: 16px; flex-shrink: 0; letter-spacing: 0.06em; text-transform: uppercase; }
+    .s-val { font-size: 20px; font-weight: 500; color: var(--green-hi); min-width: 72px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    input[type=range] {
+      flex: 1; -webkit-appearance: none; appearance: none; height: 4px;
+      background: linear-gradient(90deg, var(--green) var(--pct, 0%), var(--bg3) var(--pct, 0%));
+      border-radius: 2px; outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--green-hi); border: 3px solid var(--bg);
+      box-shadow: 0 0 8px rgba(94,201,138,0.4);
+      cursor: pointer; transition: box-shadow 0.15s;
+    }
+    input[type=range]:active::-webkit-slider-thumb { box-shadow: 0 0 16px rgba(94,201,138,0.7); }
+
+    /* META CARDS */
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .meta-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+    .meta-lbl { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); margin-bottom: 4px; }
+    .meta-val { font-size: 13px; font-weight: 400; color: var(--text); line-height: 1.4; }
+    .meta-val.dim { color: var(--text3); font-style: italic; }
+
+    /* LOG BUTTON */
+    #log-btn {
+      width: 100%; padding: 15px; margin-top: 16px;
+      background: linear-gradient(135deg, var(--green) 0%, var(--green-lit) 100%);
+      color: white; border: none; border-radius: var(--radius);
+      font-size: 15px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif;
+      letter-spacing: 0.02em; transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(45,122,85,0.35);
+    }
+    #log-btn:active { transform: scale(0.98); box-shadow: 0 2px 8px rgba(45,122,85,0.2); }
+    #log-btn:disabled { background: var(--bg3); color: var(--text3); box-shadow: none; cursor: not-allowed; }
+
+    /* CATCH LIST */
+    .catch-list { display: flex; flex-direction: column; gap: 10px; }
+    .catch-item {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 12px; display: flex; align-items: center; gap: 12px;
+      animation: slideIn 0.25s ease;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .catch-fish { flex-shrink: 0; }
+    .catch-fish svg { width: 40px; height: 28px; }
+    .catch-info { flex: 1; min-width: 0; }
+    .catch-name { font-family: 'Playfair Display', serif; font-size: 15px; color: var(--text); }
+    .catch-sub { font-size: 11px; color: var(--text3); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .catch-nums { text-align: right; flex-shrink: 0; }
+    .catch-w { font-size: 18px; font-weight: 500; color: var(--green-hi); }
+    .catch-l { font-size: 12px; color: var(--text2); margin-top: 1px; }
+    .del-btn { background: none; border: none; color: var(--text3); font-size: 20px; cursor: pointer; padding: 4px 6px; line-height: 1; border-radius: 6px; transition: color 0.15s; font-family: 'DM Sans', sans-serif; }
+    .del-btn:active { color: #e05050; }
+
+    /* STATS */
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+    .stat { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 10px; text-align: center; }
+    .stat-v { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--green-hi); }
+    .stat-l { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); margin-top: 3px; }
+
+    /* SETTINGS */
+    .settings-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+    .settings-card h3 { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--text); margin-bottom: 12px; }
+    .settings-card p { font-size: 12px; color: var(--text2); line-height: 1.6; margin-bottom: 10px; }
+    .settings-card code { font-size: 11px; background: var(--bg3); padding: 2px 6px; border-radius: 4px; color: var(--green-hi); }
+    .input-row { display: flex; gap: 8px; align-items: center; }
+    .url-input {
+      flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px;
+      padding: 10px 12px; outline: none; transition: border-color 0.2s;
+    }
+    .url-input:focus { border-color: var(--green); }
+    .url-input::placeholder { color: var(--text3); }
+    .save-url-btn {
+      padding: 10px 16px; background: var(--green); border: none; border-radius: 8px;
+      color: white; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+      cursor: pointer; white-space: nowrap; transition: background 0.15s;
+    }
+    .save-url-btn:active { background: var(--green-lit); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+    .status-dot.ok { background: var(--green-hi); box-shadow: 0 0 6px var(--green-hi); }
+    .sheets-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); margin-top: 10px; }
+    .export-btn {
+      width: 100%; padding: 13px; background: transparent; border: 1px solid var(--green);
+      border-radius: var(--radius); color: var(--green-hi); font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 8px; transition: all 0.2s;
+    }
+    .export-btn:active { background: rgba(45,122,85,0.15); }
+    .step-list { list-style: none; counter-reset: steps; }
+    .step-list li { counter-increment: steps; display: flex; gap: 10px; margin-bottom: 10px; font-size: 12px; color: var(--text2); line-height: 1.5; }
+    .step-list li::before { content: counter(steps); display: flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; border-radius: 50%; background: var(--bg3); border: 1px solid var(--border); color: var(--green-hi); font-size: 11px; font-weight: 500; flex-shrink: 0; margin-top: 1px; }
+
+    /* EMPTY */
+    .empty { text-align: center; padding: 40px 20px; }
+    .empty .e-icon { font-size: 48px; opacity: 0.3; margin-bottom: 12px; }
+    .empty p { font-size: 14px; color: var(--text3); }
+
+    /* TOAST */
+    #toast {
+      position: fixed; bottom: calc(var(--safe-bot) + 20px); left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--bg3); border: 1px solid var(--green); color: var(--green-hi);
+      padding: 11px 22px; border-radius: 30px; font-size: 13px; font-weight: 500;
+      opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 100; white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.error { border-color: #e05050; color: #e05050; }
+
+    /* SYNC INDICATOR */
+    .sync-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text3); background: var(--bg3); border-radius: 10px; padding: 3px 8px; margin-top: 4px; }
+    .sync-chip.ok { color: var(--green-hi); }
+    .sync-chip.fail { color: #e05050; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .sync-chip.loading svg { animation: spin 1s linear infinite; }
+  </style>
+</head>
+<body>
+<div id="shell">
+  <div id="header">
+    <div>
+      <h1>🎣 Kalakirja</h1>
+      <div class="subtitle" id="header-date"></div>
+    </div>
+    <div id="sheets-indicator" class="sync-chip" style="display:none">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+      Sheets yhdistetty
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="showTab('log')">Kirjaa</button>
+    <button class="tab" onclick="showTab('catches')">Saaliit</button>
+    <button class="tab" onclick="showTab('settings')">Asetukset</button>
+  </div>
+
+  <div id="content">
+
+    <!-- LOG TAB -->
+    <div id="tab-log" class="page active">
+      <div class="lbl">Laji</div>
+      <div class="species-grid" id="species-grid"></div>
+
+      <div class="lbl">Pyyntitapa</div>
+      <div class="method-grid" id="method-grid">
+        <button class="method-btn" data-method="Verkko">
+          <span class="m-icon">🕸️</span><span class="m-name">Verkko</span>
+        </button>
+        <button class="method-btn" data-method="Uistelu">
+          <span class="m-icon">🎣</span><span class="m-name">Uistelu</span>
+        </button>
+        <button class="method-btn" data-method="Heittokalastus">
+          <span class="m-icon">🪝</span><span class="m-name">Heitto&shy;kalastus</span>
+        </button>
+      </div>
+
+      <div class="lbl">Mitat</div>
+      <div class="measure-block">
+        <div class="slider-row">
+          <div class="s-unit">g</div>
+          <input type="range" id="w-slider" min="0" max="500" value="0" step="1">
+          <div class="s-val"><span id="w-val">0</span> g</div>
+        </div>
+        <div class="slider-row" id="len-row" style="display:none">
+          <div class="s-unit">cm</div>
+          <input type="range" id="l-slider" min="0" max="120" value="0" step="1">
+          <div class="s-val"><span id="l-val">0</span> cm</div>
+        </div>
+      </div>
+
+      <div class="lbl">Olosuhteet</div>
+      <div class="meta-grid">
+        <div class="meta-card"><div class="meta-lbl">Aika</div><div class="meta-val" id="m-time">—</div></div>
+        <div class="meta-card"><div class="meta-lbl">Sijainti</div><div class="meta-val dim" id="m-loc">Haetaan...</div></div>
+        <div class="meta-card"><div class="meta-lbl">Sää</div><div class="meta-val dim" id="m-weather">Haetaan...</div></div>
+        <div class="meta-card"><div class="meta-lbl">Koordinaatit</div><div class="meta-val dim" id="m-coords">—</div></div>
+      </div>
+
+      <button id="log-btn" disabled>Valitse laji</button>
+    </div>
+
+    <!-- CATCHES TAB -->
+    <div id="tab-catches" class="page">
+      <div class="stats-row" id="stats-row" style="display:none">
+        <div class="stat"><div class="stat-v" id="st-count">0</div><div class="stat-l">Kaloja</div></div>
+        <div class="stat"><div class="stat-v" id="st-total">0</div><div class="stat-l">Paino (g)</div></div>
+        <div class="stat"><div class="stat-v" id="st-best">0</div><div class="stat-l">Paras (g)</div></div>
+      </div>
+      <div class="catch-list" id="catch-list">
+        <div class="empty"><div class="e-icon">🐟</div><p>Ei vielä saaliita.<br>Heitä viehe!</p></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div id="tab-settings" class="page">
+      <div class="settings-card">
+        <h3>Google Sheets -yhteys</h3>
+        <p>Kirjaa saaliit automaattisesti omaan Google-taulukkoon. Taulukko näkyy vain sinulle, kun käytät Apps Script -kirjausta.</p>
+        <ol class="step-list">
+          <li>Luo uusi Google-taulukko ja lisää otsikkorivi: <code>Aika, Päivä, Laji, Pyyntitapa, Paino(g), Pituus(cm), Sijainti, Sää, Koordinaatit</code></li>
+          <li>Avaa <code>Laajennukset → Apps Script</code></li>
+          <li>Liitä alla oleva koodi ja tallenna</li>
+          <li>Klikkaa <code>Ota käyttöön → Uusi käyttöönotto → Web-sovellus</code><br>
+              Suorita nimellä: <strong>Minä</strong> · Käyttöoikeus: <strong>Vain minä</strong></li>
+          <li>Kopioi käyttöönoton URL alle</li>
+        </ol>
+        <p style="margin-top:8px">Apps Script -koodi:</p>
+        <div style="background:var(--bg3);border-radius:8px;padding:12px;font-size:11px;color:var(--green-hi);font-family:monospace;line-height:1.7;margin-bottom:12px;overflow-x:auto;white-space:pre">function doPost(e) {
+  const s = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getActiveSheet();
+  const d = JSON.parse(e.postData.contents);
+  s.appendRow([
+    d.time, d.date, d.species,
+    d.method||'', d.weight, d.length||'',
+    d.location, d.weather, d.coords||''
+  ]);
+  return ContentService
+    .createTextOutput('OK');
+}</div>
+        <div class="input-row">
+          <input class="url-input" type="url" id="sheets-url" placeholder="https://script.google.com/macros/s/…/exec">
+          <button class="save-url-btn" onclick="saveUrl()">Tallenna</button>
+        </div>
+        <div class="sheets-status">
+          <div class="status-dot" id="url-dot"></div>
+          <span id="url-status">URL:ä ei ole asetettu</span>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <h3>Vie saaliit</h3>
+        <p>Lataa kaikki kirjatut saaliit CSV-tiedostona.</p>
+        <button class="export-btn" onclick="exportCSV()">⬇ Lataa CSV</button>
+      </div>
+
+      <div class="settings-card">
+        <h3>Poista kaikki tiedot</h3>
+        <p>Poistaa kaikki saaliit tältä laitteelta pysyvästi.</p>
+        <button class="export-btn" style="border-color:#e05050;color:#e05050" onclick="clearAll()">Poista kaikki saaliit</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ── SPECIES ──────────────────────────────────────────────────────────────────
+const SPECIES = [
+  { name:'Ahven',   col:'#d4620a', hasLen:true,  maxW:3000,  maxL:60  },
+  { name:'Hauki',   col:'#4a8a2a', hasLen:true,  maxW:20000, maxL:130 },
+  { name:'Kuha',    col:'#c8a020', hasLen:true,  maxW:15000, maxL:100 },
+  { name:'Lahna',   col:'#7050b0', hasLen:true,  maxW:8000,  maxL:75  },
+  { name:'Muikku',  col:'#2870c0', hasLen:false, maxW:500,   maxL:0   },
+  { name:'Salakka', col:'#20a0b0', hasLen:false, maxW:300,   maxL:0   },
+];
+
+function fishSVG(col, w=40, h=28) {
+  return `<svg viewBox="0 0 40 28" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+    <polygon points="30,14 40,7 40,21" fill="${col}" opacity="0.75"/>
+    <ellipse cx="17" cy="14" rx="16" ry="9" fill="${col}"/>
+    <ellipse cx="15" cy="16" rx="11" ry="5" fill="white" opacity="0.1"/>
+    <circle cx="7" cy="11" r="2.8" fill="white" opacity="0.9"/>
+    <circle cx="7" cy="11" r="1.4" fill="#111"/>
+    <circle cx="8" cy="10" r="0.7" fill="white" opacity="0.7"/>
+    <path d="M12,6 Q20,2 28,6" stroke="white" stroke-width="0.8" fill="none" opacity="0.2"/>
+  </svg>`;
+}
+
+const grid = document.getElementById('species-grid');
+let selected = null;
+SPECIES.forEach(s => {
+  const btn = document.createElement('button');
+  btn.className = 'sp-btn';
+  btn.innerHTML = `${fishSVG(s.col)}<span class="sp-name">${s.name}</span>`;
+  btn.addEventListener('click', () => {
+    selected = s;
+    document.querySelectorAll('.sp-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateSliders();
+    updateLogBtn();
+  });
+  grid.appendChild(btn);
+});
+
+// ── METHOD ────────────────────────────────────────────────────────────────────
+let method = null;
+document.querySelectorAll('.method-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    method = btn.dataset.method;
+    document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateLogBtn();
+  });
+});
+
+
+const wSlider = document.getElementById('w-slider');
+const lSlider = document.getElementById('l-slider');
+const wVal    = document.getElementById('w-val');
+const lVal    = document.getElementById('l-val');
+const lenRow  = document.getElementById('len-row');
+
+function setPct(slider) {
+  const pct = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+  slider.style.setProperty('--pct', pct + '%');
+}
+wSlider.addEventListener('input', () => { wVal.textContent = wSlider.value; setPct(wSlider); });
+lSlider.addEventListener('input', () => { lVal.textContent = lSlider.value; setPct(lSlider); });
+
+function updateSliders() {
+  if (!selected) return;
+  wSlider.max = selected.maxW; wSlider.value = 0; wVal.textContent = '0'; setPct(wSlider);
+  lSlider.max = selected.maxL; lSlider.value = 0; lVal.textContent = '0'; setPct(lSlider);
+  lenRow.style.display = selected.hasLen ? 'flex' : 'none';
+}
+function updateLogBtn() {
+  const btn = document.getElementById('log-btn');
+  if (!selected && !method) { btn.disabled = true; btn.textContent = 'Valitse laji ja pyyntitapa'; return; }
+  if (!selected) { btn.disabled = true; btn.textContent = 'Valitse laji'; return; }
+  if (!method)   { btn.disabled = true; btn.textContent = 'Valitse pyyntitapa'; return; }
+  btn.disabled = false;
+  btn.textContent = `Kirjaa saalis — ${selected.name} · ${method}`;
+}
+
+// ── TIME ──────────────────────────────────────────────────────────────────────
+function updateTime() {
+  const now = new Date();
+  document.getElementById('m-time').textContent =
+    now.toLocaleTimeString('fi-FI',{hour:'2-digit',minute:'2-digit'}) + '  ·  ' +
+    now.toLocaleDateString('fi-FI',{day:'2-digit',month:'short',year:'numeric'});
+  document.getElementById('header-date').textContent =
+    now.toLocaleDateString('fi-FI',{weekday:'long',day:'numeric',month:'long'});
+}
+updateTime(); setInterval(updateTime, 30000);
+
+// ── GEO + WEATHER ─────────────────────────────────────────────────────────────
+let geoCoords = null, weatherStr = 'Tuntematon', locationStr = 'Tuntematon';
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude: lat, longitude: lon } = pos.coords;
+    geoCoords = { lat, lon };
+    document.getElementById('m-coords').textContent = `${lat.toFixed(4)}°N ${lon.toFixed(4)}°E`;
+    document.getElementById('m-coords').classList.remove('dim');
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+      .then(r=>r.json()).then(d=>{
+        const a = d.address;
+        locationStr = (a.village||a.town||a.city||a.county||'?') + (a.state?`, ${a.state}`:'');
+        document.getElementById('m-loc').textContent = locationStr;
+        document.getElementById('m-loc').classList.remove('dim');
+      }).catch(()=>{
+        locationStr = `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
+        document.getElementById('m-loc').textContent = locationStr;
+        document.getElementById('m-loc').classList.remove('dim');
+      });
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m`)
+      .then(r=>r.json()).then(d=>{
+        const c = d.current, code = c.weather_code;
+        const descs = [[0,'Selkeää'],[1,'Melko selkeää'],[2,'Puolipilvistä'],[3,'Pilvistä'],[45,'Sumuista'],[51,'Tihkua'],[61,'Sadetta'],[63,'Kovaa sadetta'],[71,'Lumisadetta'],[80,'Kuuroja'],[95,'Ukkosta']];
+        let desc='Tuntematon'; for(const[t,l] of descs){if(code>=t)desc=l;}
+        weatherStr = `${desc} ${Math.round(c.temperature_2m)}°C · ${Math.round(c.wind_speed_10m)}km/h`;
+        document.getElementById('m-weather').textContent = weatherStr;
+        document.getElementById('m-weather').classList.remove('dim');
+      }).catch(()=>{
+        document.getElementById('m-weather').textContent = 'Ei saatavilla';
+        document.getElementById('m-weather').classList.remove('dim');
+      });
+  }, ()=>{
+    ['m-loc','m-weather','m-coords'].forEach(id=>{
+      document.getElementById(id).textContent='Ei saatavilla';
+      document.getElementById(id).classList.remove('dim');
+    });
+  });
+}
+
+// ── CATCHES ───────────────────────────────────────────────────────────────────
+let catches = JSON.parse(localStorage.getItem('kalakirja-catches')||'[]');
+
+function saveCatches() { localStorage.setItem('kalakirja-catches', JSON.stringify(catches)); }
+
+function renderCatches() {
+  const list = document.getElementById('catch-list');
+  const stats = document.getElementById('stats-row');
+  if (!catches.length) {
+    list.innerHTML = '<div class="empty"><div class="e-icon">🐟</div><p>Ei vielä saaliita.<br>Heitä viehe!</p></div>';
+    stats.style.display = 'none'; return;
+  }
+  stats.style.display = 'grid';
+  const total = catches.reduce((s,c)=>s+c.weight,0);
+  const best  = Math.max(...catches.map(c=>c.weight));
+  document.getElementById('st-count').textContent = catches.length;
+  document.getElementById('st-total').textContent = total.toLocaleString('fi-FI');
+  document.getElementById('st-best').textContent  = best.toLocaleString('fi-FI');
+  list.innerHTML = '';
+  catches.forEach(c => {
+    const sp = SPECIES.find(s=>s.name===c.species)||{col:'#2d7a55'};
+    const el = document.createElement('div');
+    el.className = 'catch-item';
+    el.innerHTML = `
+      <div class="catch-fish">${fishSVG(sp.col)}</div>
+      <div class="catch-info">
+        <div class="catch-name">${c.species} <span style="font-size:12px;color:var(--text3);font-family:'DM Sans',sans-serif;font-style:normal;">· ${c.method||'—'}</span></div>
+        <div class="catch-sub">${c.time} · ${c.date} · ${c.location}</div>
+        <div class="catch-sub">${c.weather}</div>
+        ${c.syncOk ? '<div class="sync-chip ok"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Sheets</div>' : ''}
+      </div>
+      <div class="catch-nums">
+        <div class="catch-w">${c.weight} g</div>
+        ${c.length!=null ? `<div class="catch-l">${c.length} cm</div>` : ''}
+      </div>
+      <button class="del-btn" data-id="${c.id}">×</button>`;
+    list.appendChild(el);
+  });
+  list.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      catches = catches.filter(c=>c.id!==parseInt(btn.dataset.id));
+      saveCatches(); renderCatches();
+    });
+  });
+}
+renderCatches();
+
+// ── LOG BUTTON ─────────────────────────────────────────────────────────────────
+document.getElementById('log-btn').addEventListener('click', async () => {
+  if (!selected || !method) return;
+  const w = parseInt(wSlider.value);
+  const l = selected.hasLen ? parseInt(lSlider.value) : null;
+  const now = new Date();
+  const entry = {
+    id: Date.now(),
+    species: selected.name,
+    method: method,
+    weight: w,
+    length: l,
+    time:  now.toLocaleTimeString('fi-FI',{hour:'2-digit',minute:'2-digit'}),
+    date:  now.toLocaleDateString('fi-FI',{day:'2-digit',month:'short',year:'numeric'}),
+    location: locationStr,
+    weather:  weatherStr,
+    coords: geoCoords ? `${geoCoords.lat.toFixed(4)},${geoCoords.lon.toFixed(4)}` : '',
+    syncOk: false,
+  };
+  catches.unshift(entry);
+  saveCatches();
+  renderCatches();
+  const msg = `${selected.name} · ${w} g` + (l!=null?` · ${l} cm`:'');
+  showToast(msg + ' kirjattu!');
+  wSlider.value=0; wVal.textContent='0'; setPct(wSlider);
+  lSlider.value=0; lVal.textContent='0'; setPct(lSlider);
+
+  // Sync to Sheets
+  const url = localStorage.getItem('kalakirja-sheets-url');
+  if (url) {
+    try {
+      const res = await fetch(url, {
+        method:'POST', mode:'no-cors',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          time: entry.time, date: entry.date, species: entry.species,
+          method: entry.method, weight: entry.weight, length: entry.length||'',
+          location: entry.location, weather: entry.weather, coords: entry.coords
+        })
+      });
+      // no-cors → opaque response, assume OK
+      entry.syncOk = true;
+      saveCatches(); renderCatches();
+      showToast('✓ Tallennettu Sheetsiin!');
+    } catch(e) {
+      showToast('⚠ Sheets-tallennus epäonnistui', true);
+    }
+  }
+});
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+function loadUrlUI() {
+  const url = localStorage.getItem('kalakirja-sheets-url')||'';
+  document.getElementById('sheets-url').value = url;
+  const dot = document.getElementById('url-dot');
+  const st  = document.getElementById('url-status');
+  const ind = document.getElementById('sheets-indicator');
+  if (url) { dot.classList.add('ok'); st.textContent = 'URL asetettu'; ind.style.display='flex'; }
+  else      { dot.classList.remove('ok'); st.textContent = 'URL:ä ei ole asetettu'; ind.style.display='none'; }
+}
+loadUrlUI();
+
+function saveUrl() {
+  const url = document.getElementById('sheets-url').value.trim();
+  if (url && !url.startsWith('https://script.google.com')) {
+    showToast('Tarkista URL – sen tulee alkaa script.google.com', true); return;
+  }
+  localStorage.setItem('kalakirja-sheets-url', url);
+  loadUrlUI();
+  showToast(url ? 'Sheets URL tallennettu!' : 'URL poistettu');
+}
+
+function exportCSV() {
+  if (!catches.length) { showToast('Ei saaliita vietäväksi'); return; }
+  const hdr = 'Aika,Päivä,Laji,Pyyntitapa,Paino(g),Pituus(cm),Sijainti,Sää,Koordinaatit\n';
+  const rows = catches.map(c=>[c.time,c.date,c.species,c.method||'',c.weight,c.length||'',c.location,c.weather,c.coords||''].join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+hdr+rows],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`kalakirja_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+}
+
+function clearAll() {
+  if (!confirm('Poistetaanko kaikki saaliit pysyvästi?')) return;
+  catches=[]; saveCatches(); renderCatches(); showToast('Kaikki saaliit poistettu');
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function showTab(t) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (err?' error':'');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.className='toast', 2800);
+}
+
+// ── SERVICE WORKER ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
